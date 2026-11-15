@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Content Studio</title><link rel="stylesheet" href="styles.css"></head>
+<body><div class="app-frame">
+<aside class="sidebar">
+ <a class="brand" href="#" aria-label="Content Studio home"><span class="brand-icon">◈</span><span>content<br><b>studio.</b></span></a>
+ <div class="workspace"><span class="workspace-avatar">C</span><span>Centex workspace<small>Your creative library</small></span><span class="workspace-arrow">⌄</span></div>
+ <div class="sidebar-scroll">
+ <div class="section-label">LIBRARY</div>
+ <button class="nav-item active" id="all-photos"><span>▦</span>All photos<b id="total-count">240</b></button>
+ <div class="section-label folder-label">SOURCE FOLDERS <span id="source-count">3</span></div><div id="folders"></div>
+ <div class="section-label collection-label">POST COLLECTIONS<button id="new-collection-side" aria-label="Create collection">+</button></div><div id="collections-nav"></div>
+ <button class="new-collection" id="new-collection">+ <span>New collection</span></button>
+ </div>
+ <div class="sidebar-bottom"><span class="demo-dot"></span>Content Studio · Beta<p>Your creative workspace.</p><button id="reset-demo">Reset demo</button><button id="settings" class="nav-item"><span>⚙</span>Settings</button></div>
+</aside>
+<div class="main-shell"><header class="topbar"><span>Workspace <span class="breadcrumb">/</span> <b id="breadcrumb">All photos</b></span><div class="topbar-right"><button id="mode-switch" class="prototype-badge">DEMO LIBRARY</button><span class="avatar">YL</span></div></header>
+<main>
+ <div id="library-page">
+ <section class="page-heading"><div><div class="eyebrow">YOUR CREATIVE LIBRARY</div><h1 id="page-title">All photos</h1><p id="page-description">Every perspective, together in one place.</p></div><button class="primary" id="create-top"><span>+</span> New collection</button></section>
+ <section class="collection-strip" id="collection-strip"><div class="strip-heading"><h2>Made for your next post</h2><span>Your collections, ready to curate</span></div><div id="collection-cards"></div></section>
+ <section class="library-section"><div class="library-heading"><div><h2 id="library-title">All photos</h2><span id="result-count"></span></div><div class="library-actions"><button class="text-button" id="collection-settings" hidden>⚙ Collection settings</button><span class="live-dot"></span><span>Demo library</span></div></div>
+ <div class="toolbar"><label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="search" placeholder="Search photos, tags, or photographers…" aria-label="Search photos, tags, or photographers"><kbd>/</kbd></label><button class="filter-button" id="tag-filter">☷ <span>Tags</span><b id="tag-filter-count"></b>⌄</button><select id="sort" aria-label="Sort photos"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Filename A–Z</option></select><div class="density-controls"><button class="active" id="comfortable" aria-label="Comfortable grid" title="Comfortable grid">▦</button><button id="compact" aria-label="Compact grid" title="Compact grid">▤</button></div></div>
+ <div id="filter-panel" class="filter-panel" hidden><div><b>Filter by tags</b><span>Match any selected tag</span><button id="clear-tags">Clear</button></div><div id="filter-tags"></div></div>
+ <div class="gallery-meta"><label><input type="checkbox" id="select-all"> <span id="select-label">Select visible photos</span></label><span id="filter-summary">A fresh perspective, in every folder.</span></div>
+ <div id="gallery" class="gallery"></div><div id="empty" class="empty" hidden><span>⌕</span><h3>No photos here yet</h3><p>Try another search or add photos from All photos.</p><button id="clear-filters">Browse all photos</button></div><div class="load-area"><span id="loaded-count"></span><button id="load-more">Load more photos ↓</button></div>
+ </section></div><section id="settings-page" hidden></section><footer>Thoughtfully organized. Ready to create.<span>Read-only originals · Made for your next post</span></footer>
+</main>
+<div id="selection-bar" class="selection-bar" hidden><span class="selection-count" id="selection-count"></span><button id="clear-selection" aria-label="Clear selection">✕</button><i></i><button id="bulk-tags">♧ &nbsp;Add tags</button><button id="add-to-collection">▱ &nbsp;Add to collection</button><button id="remove-from-collection" hidden>Remove from collection</button><button id="download">↓ &nbsp;Download originals <small>SIMULATED</small></button></div>
+</div></div>
+<dialog id="modal"><div id="modal-content"></div></dialog><div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="app.js"></script></body></html>
