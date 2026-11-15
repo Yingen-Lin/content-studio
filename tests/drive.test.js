@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fileId,parentQuery,indexFolder,FOLDER_MIME} from '../src/drive.js';
-import {mergePhotos,normalizeTags} from '../public/library.js';
+import {mergePhotos,normalizeTags,getSourceViews} from '../public/library.js';
 const root='root_folder_123';
 test('accepts folder links and IDs; rejects other hosts and query injection',()=>{
  assert.equal(fileId(`https://drive.google.com/drive/folders/${root}?usp=sharing`),root);
@@ -39,3 +39,12 @@ test('refresh and overlapping sources preserve tags and stable IDs',()=>{
  assert.deepEqual(old[0].tags,['Favorites']);
 });
 test('normalizing tags avoids case-insensitive duplicates and blanks',()=>assert.deepEqual(normalizeTags([' Nature ','nature','','Campaign']),['Nature','Campaign']));
+test('overlapping roots and nested folders produce one sidebar entry per Drive folder',()=>{
+ const nested={id:'photographer',name:'Photographer',ids:['a']};
+ const sources=[{id:'parent',children:[nested,{id:'other',ids:['b']}]},{id:'photographer',ids:['a'],children:[{id:'other',ids:['b']}]}];
+ const result=getSourceViews(sources);
+ assert.deepEqual(result.map(s=>s.id),['parent','other','photographer']);
+ assert.equal(result.find(s=>s.id==='photographer').child,undefined);
+ assert.equal(result.find(s=>s.id==='other').child,true);
+ assert.equal(sources[0].children[0].child,undefined);
+});

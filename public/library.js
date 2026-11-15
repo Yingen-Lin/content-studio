@@ -8,3 +8,10 @@ export function mergePhotos(existing,incoming) {
   for(const p of incoming)map.set(p.id,{...p,tags:map.get(p.id)?.tags||[]});
   return [...map.values()];
 }
+export function getSourceViews(sources) {
+  const roots=new Set(sources.map(s=>s.id)),seen=new Set();
+  return sources.flatMap(s=>[s,...(s.children||[]).filter(c=>!roots.has(c.id)).map(c=>({...c,child:true}))]).filter(s=>{
+    if(seen.has(s.id))return false;
+    seen.add(s.id);return true;
+  });
+}
