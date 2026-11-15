@@ -23,3 +23,5 @@ html,body{height:100%;overflow:hidden}body{height:100dvh;min-height:0;padding:16
 .child-folder{padding-left:25px;font-size:10px}.child-folder>span:first-child{font-size:13px;opacity:.65}
 
 .startup-status{position:fixed;inset:16px;z-index:100;background:#f9f7fcf5;border-radius:24px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;font-size:12px;color:#9687ad}.loading-orbit{display:block;width:24px;height:24px;border:2px solid #e7deef;border-top-color:#9d8ab8;border-radius:50%;animation:orbit 1s linear infinite}@keyframes orbit{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.loading-orbit{animation:none}*{scroll-behavior:auto!important}}@media(max-width:760px){.startup-status{inset:8px;border-radius:18px}}
+
+.folder-chevron{display:block;transition:transform .16s ease}.folder-chevron.collapsed{transform:rotate(-90deg)}

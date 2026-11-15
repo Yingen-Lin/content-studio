@@ -48,3 +48,9 @@ test('overlapping roots and nested folders produce one sidebar entry per Drive f
  assert.equal(result.find(s=>s.id==='other').child,true);
  assert.equal(sources[0].children[0].child,undefined);
 });
+test('collapsing one source hides its descendants and keeps independently added sources visible',()=>{
+ const sources=[{id:'parent',children:[{id:'nested'},{id:'standalone'}]},{id:'standalone',children:[{id:'own-child'}]}];
+ assert.deepEqual(getSourceViews(sources,new Set(['parent'])).map(s=>s.id),['parent','standalone','own-child']);
+ assert.deepEqual(getSourceViews(sources).map(s=>s.id),['parent','nested','standalone','own-child']);
+ assert.equal(sources[0].children.length,2);
+});
