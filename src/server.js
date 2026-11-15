@@ -6,9 +6,12 @@ import {resolve,extname,sep} from 'node:path';
 import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {FOLDER_MIME,FILE_FIELDS,fileId,indexFolder} from './drive.js';
+import {openLibraryStore} from './storage.js';
 
 const root=resolve(fileURLToPath(new URL('../public/',import.meta.url)));
 const sessions=new Map();
+let libraryStore;
+const storage=()=>libraryStore||(libraryStore=openLibraryStore(process.env.LIBRARY_DB_PATH||resolve('.local/content-studio.sqlite')));
 const port=Number(process.env.PORT||4180);
 const origin=process.env.APP_ORIGIN||`http://127.0.0.1:${port}`;
 const redirect=process.env.GOOGLE_REDIRECT_URI||`${origin}/auth/google/callback`;
@@ -24,7 +27,7 @@ function session(req,res,create=false) {
 }
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data))}
 function go(res,path){res.writeHead(303,{Location:path});res.end()}
-async function body(req){let text='';for await(const part of req){text+=part;if(text.length>16384)throw new Error('Request too large.')}return JSON.parse(text||'{}')}
+async function body(req,maxBytes=16384){let text='';for await(const part of req){text+=part;if(Buffer.byteLength(text)>maxBytes)throw new Error('Request too large.')}return JSON.parse(text||'{}')}
 async function tokenRequest(params){const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:new URLSearchParams(params),signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('Google sign-in expired or could not be completed. Connect again.');return response.json()}
 async function access(s){if(!s?.tokens)throw Object.assign(new Error('Connect Google Drive first.'),{status:401});if(s.tokens.expires<Date.now()+60000){if(!s.tokens.refresh_token)throw Object.assign(new Error('Reconnect Google Drive to continue.'),{status:401});const next=await tokenRequest({client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,grant_type:'refresh_token',refresh_token:s.tokens.refresh_token});s.tokens={...s.tokens,...next,expires:Date.now()+next.expires_in*1000}}return s.tokens.access_token}
 async function google(s,path,params={}){const url=new URL(`https://www.googleapis.com/drive/v3/${path}`);url.search=new URLSearchParams(params);const response=await fetch(url,{headers:{Authorization:`Bearer ${await access(s)}`},signal:AbortSignal.timeout(30000)});if(!response.ok){const status=response.status;throw Object.assign(new Error(status===403?'Google Drive denied access. Check folder permissions and download restrictions.':status===404?'That folder or photo is unavailable. Check the link and your Google account.':'Google Drive request failed. Please try again.'),{status:status===401?401:status===404?404:502})}return response.json()}
@@ -38,6 +41,16 @@ export async function handler(req,res){
     if(!['GET','HEAD','POST'].includes(req.method))return json(res,405,{error:'Method not allowed.'});
     if(req.method==='POST'&&req.headers.origin!==origin)return json(res,403,{error:'This request must come from Content Studio.'});
     const s=session(req,res);
+    if(path==='/api/library'||path==='/api/library/export') {
+      await access(s);
+      if(req.method==='GET'){
+        const result=storage().read(s.email);
+        if(path.endsWith('/export'))res.setHeader('Content-Disposition','attachment; filename="content-studio-backup.json"');
+        return json(res,200,path.endsWith('/export')?{schemaVersion:1,...result}:result);
+      }
+      if(path==='/api/library'&&req.method==='POST'){const input=await body(req,8*1024*1024);return json(res,200,storage().write(s.email,input.revision,input.data))}
+      return json(res,405,{error:'Method not allowed.'});
+    }
     if(path==='/api/drive/status')return json(res,200,{configured,connected:!!s?.tokens,email:s?.email||null,defaultFolderId:process.env.DEFAULT_DRIVE_FOLDER_ID||''});
     if(path==='/auth/google') {
       if(!configured)return go(res,'/#settings/connections');

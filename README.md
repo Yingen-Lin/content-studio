@@ -4,7 +4,7 @@ A desktop-first photo workspace with a soft lavender sidebar, white canvas, past
 
 ## Run locally
 
-Requires Node 22 or newer. There are no third-party runtime dependencies.
+Requires Node 22.13 or newer (Node 24 recommended). There are no third-party runtime dependencies.
 
 ```sh
 cp .env.example .env
@@ -34,7 +34,7 @@ The Google connection used by Codex is separate from this standalone app's OAuth
 - Six photos per row on a normal desktop, eight in compact mode, with responsive smaller layouts. Images are lazy loaded and more records are revealed in batches of 48.
 - Select photos, add multiple tags, filter by any selected tag, or search filenames, folder credits, and tags.
 - Photos may belong to several post collections. Removing a photo from a collection or deleting the collection never deletes a Drive file.
-- Settings is pinned to the bottom of the sidebar and has its own routes for connections, collections, and tags. Rename/delete tags globally or edit a single photo's tags from its preview.
+- Settings is pinned to the bottom of the sidebar and has its own routes for connections, collections, tags, and Storage & backup. Rename/delete tags globally or edit a single photo's tags from its preview.
 - In demo mode downloads are explicitly simulated. In connected mode the download dialog provides a real original-file download link per selected photo; ZIP downloads are not implemented.
 - **Refresh** rescans a source for new, updated, or removed photos and preserves its existing tags. Sources also refresh on sign-in/page reload. There is no background or webhook sync yet.
 - Removing a real source hides its photos from normal browsing unless another source includes them. Its saved photo metadata, tags and collection membership are retained for re-adding the source. Drive files are untouched.
@@ -43,7 +43,11 @@ The Google connection used by Codex is separate from this standalone app's OAuth
 
 Google tokens and refresh tokens remain in server memory, behind an HttpOnly SameSite session cookie. OAuth uses state validation, PKCE, a ten-minute authorization timeout, and session rotation after sign-in. POST endpoints require the configured origin. Downloads and thumbnail proxies require the photo to have been indexed in the current authenticated server session. Source image requests go through the authenticated server rather than leaking tokens into image URLs.
 
-Tags, collection definitions, selected-source metadata and cached photo metadata are saved in browser localStorage, separately for each Google account and for the demo. Photo bytes are streamed, not persisted by the app. This is a single-browser beta: data does not sync across browsers/devices. Browser storage is not a backup; clearing it removes your local organization.
+Tags, collection definitions, source-folder metadata, cached photo metadata and collapsed-folder preferences are saved in a server-side SQLite database, separately for each Google account. The default database file is `.local/content-studio.sqlite` relative to the launch directory; set `LIBRARY_DB_PATH` to use another stable location. Database and journal files are excluded from GitHub. Photo bytes are streamed, not saved to this database.
+
+The browser keeps a convenience cache, but the database is the source of truth. Existing browser-only live libraries migrate automatically on the first authenticated opening when that account has no database record. A failed database read does not replace existing data with an empty library. A save status in the header shows pending or failed writes. Revision checks reject stale-tab writes rather than silently overwriting newer changes.
+
+Clearing cookies/browser storage may sign the user out, but signing back in to the same Google account restores the database copy. This development database lives on the computer running the server; it does not provide cloud synchronization or protection against deleting the database or losing that computer. Settings → Storage & backup can download an account library JSON backup (without photos or Google credentials), and Reload from database clears only this app’s cache and reloads the saved copy. Back up the database/JSON outside the computer if needed.
 
 Sessions expire after 24 hours and are lost when the server restarts. Reconnect Google after a restart. A failed source refresh shows an error and may leave its last cached metadata visible; retry Refresh before attempting a download. Access tokens are refreshed server-side while the session is active. Disconnect removes this app session, not the Google-account-wide grant; revoke the grant from Google Account settings if required.
 
@@ -51,7 +55,9 @@ Sessions expire after 24 hours and are lost when the server restarts. Reconnect 
 
 GitHub stores and checks this source repository. The GitHub Actions workflow runs the tests and build on pushes and pull requests. No GitHub Pages or Vercel deployment is configured: GitHub Pages cannot run this OAuth server.
 
-Before Vercel deployment, adapt the Node request handler to the selected Vercel runtime and move sessions to a durable server-side store; serverless instances cannot share this in-memory session map. Decide on durable, account-owned storage for tags/collections, add recovery/export, validate Google sign-in against the deployed HTTPS domain, and test consent, revocation, permissions and real downloads with the owner's Google account. Configure production credentials as hosting secrets and add the deployed callback URI in Google Cloud. Do not treat the local beta as a ready-to-deploy multi-user service.
+Before Vercel deployment, adapt the Node request handler to the selected Vercel runtime and move sessions to a durable server-side store; serverless instances cannot share this in-memory session map. Replace the local SQLite store with a durable hosted, account-owned database for tags/collections, validate Google sign-in against the deployed HTTPS domain, and test consent, revocation, permissions and real downloads with the owner's Google account. Configure production credentials as hosting secrets and add the deployed callback URI in Google Cloud. Do not treat the local beta as a ready-to-deploy multi-user service.
+
+The interface uses a consistent SVG outline icon set and custom keyboard-accessible sorting/tag menus, with one creation button beside Post Collections. The workspace label is static until workspace management is implemented.
 
 ## Implementation references
 
