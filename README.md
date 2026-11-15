@@ -30,7 +30,7 @@ The Google connection used by Codex is separate from this standalone app's OAuth
 
 ## Photo workflow
 
-- Source folders filter the unified gallery. The same Drive file is represented once across overlapping sources. Displayed photographer/source credits reflect the folder path.
+- Source folders filter the unified gallery. The same Drive file is represented once across overlapping sources. Nested photographer folders also appear as indented sidebar filters. Displayed photographer/source credits reflect the folder path.
 - Six photos per row on a normal desktop, eight in compact mode, with responsive smaller layouts. Images are lazy loaded and more records are revealed in batches of 48.
 - Select photos, add multiple tags, filter by any selected tag, or search filenames, folder credits, and tags.
 - Photos may belong to several post collections. Removing a photo from a collection or deleting the collection never deletes a Drive file.

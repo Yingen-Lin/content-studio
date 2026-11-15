@@ -70,7 +70,7 @@ export async function handler(req,res){
       if(path==='/api/drive/index'&&req.method==='POST') {
         if(s.indexing)return json(res,409,{error:'A folder is already loading. Please wait.'});
         const input=await body(req);s.indexing=true;
-        try{const result=await indexFolder({rootId:input.folderId,recursive:input.recursive===true,get:(p,q)=>google(s,p,q)});result.files.forEach(f=>s.files.set(f.id,f));return json(res,200,{folder:result.folder,files:result.files.map(({thumbnailLink,...file})=>file),syncedAt:new Date().toISOString()})}finally{s.indexing=false}
+        try{const result=await indexFolder({rootId:input.folderId,recursive:input.recursive===true,get:(p,q)=>google(s,p,q)});result.files.forEach(f=>s.files.set(f.id,f));return json(res,200,{folder:result.folder,folders:result.folders,files:result.files.map(({thumbnailLink,...file})=>file),syncedAt:new Date().toISOString()})}finally{s.indexing=false}
       }
       const match=path.match(/^\/api\/drive\/files\/([\w-]+)\/(thumbnail|download)$/);
       if(match&&req.method==='GET') {

@@ -20,22 +20,23 @@ export function mergePhotos(existing, incoming) {
 export async function indexFolder({rootId, recursive, get, maxFiles=10000, maxFolders=500}) {
   const root = await get(`files/${fileId(rootId)}`, {fields:'id,name,mimeType',supportsAllDrives:'true'});
   if (root.mimeType !== FOLDER_MIME) throw new Error('Choose a folder, not a file.');
-  const pending=[{id:root.id,path:root.name}], visited=new Set(), files=new Map();
+  const pending=[{id:root.id,name:root.name,path:root.name}], visited=new Set(), files=new Map(), folders=[];
   while(pending.length) {
     const folder=pending.shift(); if(visited.has(folder.id))continue;
     visited.add(folder.id);
+    folders.push(folder);
     if(visited.size>maxFolders)throw new Error('This source has too many subfolders. Add a smaller folder.');
     let token;
     do {
       const page=await get('files',{q:parentQuery(folder.id),fields:`nextPageToken,incompleteSearch,files(${FILE_FIELDS})`,pageSize:'1000',includeItemsFromAllDrives:'true',supportsAllDrives:'true',...(token?{pageToken:token}:{})});
       if(page.incompleteSearch)throw new Error('Google returned an incomplete search. Choose a smaller folder and try again.');
       for(const file of page.files||[]) {
-        if(file.mimeType===FOLDER_MIME&&recursive)pending.push({id:file.id,path:`${folder.path} / ${file.name}`});
-        if(file.mimeType?.startsWith('image/'))files.set(file.id,{...file,sourcePath:folder.path});
+        if(file.mimeType===FOLDER_MIME&&recursive)pending.push({id:file.id,name:file.name,path:`${folder.path} / ${file.name}`});
+        if(file.mimeType?.startsWith('image/'))files.set(file.id,{...file,sourcePath:folder.path,sourceFolderId:folder.id});
         if(files.size>maxFiles)throw new Error('This source exceeds 10,000 photos. Add smaller folders.');
       }
       token=page.nextPageToken;
     } while(token);
   }
-  return {folder:root,files:[...files.values()]};
+  return {folder:root,folders,files:[...files.values()]};
 }
