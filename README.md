@@ -55,13 +55,10 @@ Sessions expire after 24 hours and are lost when the server restarts. Reconnect 
 
 GitHub stores and checks this source repository. The GitHub Actions workflow runs the tests and build on pushes and pull requests. No GitHub Pages or Vercel deployment is configured: GitHub Pages cannot run this OAuth server.
 
-Before Vercel deployment, adapt the Node request handler to the selected Vercel runtime and move sessions to a durable server-side store; serverless instances cannot share this in-memory session map. Replace the local SQLite store with a durable hosted, account-owned database for tags/collections, validate Google sign-in against the deployed HTTPS domain, and test consent, revocation, permissions and real downloads with the owner's Google account. Configure production credentials as hosting secrets and add the deployed callback URI in Google Cloud. Do not treat the local beta as a ready-to-deploy multi-user service.
+Production is deployed to https://centex-studio.vercel.app. `api/studio.js` adapts the same handler to Vercel Functions; `vercel.json` routes authentication, Drive, and library requests. Node 24 is required. Public files contain no credentials or user library records.
 
-The interface uses a consistent SVG outline icon set and custom keyboard-accessible sorting/tag menus, with one creation button beside Post Collections. The workspace label is static until workspace management is implemented.
+Vercel uses a dedicated Upstash Redis database (free plan, eviction off, automatic paid upgrades off). Libraries are keyed by hashed Google account, with atomic revision checks to reject stale saves. Library records have no expiration. Sessions expire after 24 hours and are encrypted with AES-256-GCM; only hashed session IDs are stored in Redis. OAuth tokens stay server-side. The local preview continues to use SQLite and an in-memory session store unless hosted database variables are supplied.
 
-## Implementation references
+Required production environment settings: `APP_ORIGIN`, `GOOGLE_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_GOOGLE_EMAIL`, `DEFAULT_DRIVE_FOLDER_ID`, `SESSION_ENCRYPTION_KEY` (32 random bytes, base64url), and either `KV_REST_API_URL` / `KV_REST_API_TOKEN` or their `UPSTASH_REDIS_REST_*` equivalents. Keep credentials in Vercel environment settings, never source control. Add the production callback to the existing Google OAuth client while retaining the local callback.
 
-- [Google OAuth web server flow](https://developers.google.com/identity/protocols/oauth2/web-server)
-- [Drive search and folder queries](https://developers.google.com/workspace/drive/api/guides/search-files)
-- [Authenticated thumbnail metadata](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)
-- [Original-file downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads)
+Existing local library metadata was migrated once without overwriting the local database. Further local and hosted changes are independent. Settings → Storage & backup exports the hosted library on the hosted site. Google OAuth remains in Testing mode with the allowed owner account; Google may require reconnection after its testing-token expiry. Deployments are manual; no ongoing GitHub repository access was granted to Vercel.

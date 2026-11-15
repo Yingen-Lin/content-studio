@@ -7,29 +7,32 @@ import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 import {FOLDER_MIME,FILE_FIELDS,fileId,indexFolder} from './drive.js';
 import {openLibraryStore} from './storage.js';
+import {hostedConfigured,hostedLibraryStore,hostedSessions} from './hosted-storage.js';
 
 const root=resolve(fileURLToPath(new URL('../public/',import.meta.url)));
-const sessions=new Map();
+const sessions=hostedConfigured()?hostedSessions():new Map();
 let libraryStore;
-const storage=()=>libraryStore||(libraryStore=openLibraryStore(process.env.LIBRARY_DB_PATH||resolve('.local/content-studio.sqlite')));
+const storage=()=>libraryStore||(libraryStore=hostedConfigured()?hostedLibraryStore():openLibraryStore(process.env.LIBRARY_DB_PATH||resolve('.local/content-studio.sqlite')));
 const port=Number(process.env.PORT||4180);
 const origin=process.env.APP_ORIGIN||`http://127.0.0.1:${port}`;
 const redirect=process.env.GOOGLE_REDIRECT_URI||`${origin}/auth/google/callback`;
 const configured=!!(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET);
 const secure=new URL(origin).protocol==='https:';
 const random=()=>randomBytes(32).toString('base64url');
-function session(req,res,create=false) {
+async function session(req,res,create=false) {
   const id=req.headers.cookie?.match(/(?:^|;\s*)studio_session=([\w-]+)/)?.[1];
-  let value=sessions.get(id);
-  if(value&&value.expires<Date.now()){sessions.delete(id);value=null}
-  if(!value&&create){const key=random();value={expires:Date.now()+86400000,files:new Map()};sessions.set(key,value);res.setHeader('Set-Cookie',`studio_session=${key}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400${secure?'; Secure':''}`)}
+  let value=await sessions.get(id);
+  if(value&&value.expires<Date.now()){await sessions.delete(id);value=null}
+  if(!value&&create){const key=random();value={expires:Date.now()+86400000,files:new Map()};Object.defineProperty(value,'key',{value:key});await sessions.set(key,value);res.setHeader('Set-Cookie',`studio_session=${key}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400${secure?'; Secure':''}`)}
+  if(value&&!value.key)Object.defineProperty(value,'key',{value:id});
   return value;
 }
+async function saveSession(value){if(value?.key)await sessions.set(value.key,value)}
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data))}
 function go(res,path){res.writeHead(303,{Location:path});res.end()}
 async function body(req,maxBytes=16384){let text='';for await(const part of req){text+=part;if(Buffer.byteLength(text)>maxBytes)throw new Error('Request too large.')}return JSON.parse(text||'{}')}
 async function tokenRequest(params){const response=await fetch('https://oauth2.googleapis.com/token',{method:'POST',body:new URLSearchParams(params),signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('Google sign-in expired or could not be completed. Connect again.');return response.json()}
-async function access(s){if(!s?.tokens)throw Object.assign(new Error('Connect Google Drive first.'),{status:401});if(s.tokens.expires<Date.now()+60000){if(!s.tokens.refresh_token)throw Object.assign(new Error('Reconnect Google Drive to continue.'),{status:401});const next=await tokenRequest({client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,grant_type:'refresh_token',refresh_token:s.tokens.refresh_token});s.tokens={...s.tokens,...next,expires:Date.now()+next.expires_in*1000}}return s.tokens.access_token}
+async function access(s){if(!s?.tokens)throw Object.assign(new Error('Connect Google Drive first.'),{status:401});if(s.tokens.expires<Date.now()+60000){if(!s.tokens.refresh_token)throw Object.assign(new Error('Reconnect Google Drive to continue.'),{status:401});const next=await tokenRequest({client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,grant_type:'refresh_token',refresh_token:s.tokens.refresh_token});s.tokens={...s.tokens,...next,expires:Date.now()+next.expires_in*1000};await saveSession(s)}return s.tokens.access_token}
 async function google(s,path,params={}){const url=new URL(`https://www.googleapis.com/drive/v3/${path}`);url.search=new URLSearchParams(params);const response=await fetch(url,{headers:{Authorization:`Bearer ${await access(s)}`},signal:AbortSignal.timeout(30000)});if(!response.ok){const status=response.status;throw Object.assign(new Error(status===403?'Google Drive denied access. Check folder permissions and download restrictions.':status===404?'That folder or photo is unavailable. Check the link and your Google account.':'Google Drive request failed. Please try again.'),{status:status===401?401:status===404?404:502})}return response.json()}
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
 
@@ -40,40 +43,40 @@ export async function handler(req,res){
     const url=new URL(req.url,origin),path=url.pathname;
     if(!['GET','HEAD','POST'].includes(req.method))return json(res,405,{error:'Method not allowed.'});
     if(req.method==='POST'&&req.headers.origin!==origin)return json(res,403,{error:'This request must come from Content Studio.'});
-    const s=session(req,res);
+    const s=await session(req,res);
     if(path==='/api/library'||path==='/api/library/export') {
       await access(s);
       if(req.method==='GET'){
-        const result=storage().read(s.email);
+        const result=await storage().read(s.email);
         if(path.endsWith('/export'))res.setHeader('Content-Disposition','attachment; filename="content-studio-backup.json"');
         return json(res,200,path.endsWith('/export')?{schemaVersion:1,...result}:result);
       }
-      if(path==='/api/library'&&req.method==='POST'){const input=await body(req,8*1024*1024);return json(res,200,storage().write(s.email,input.revision,input.data))}
+      if(path==='/api/library'&&req.method==='POST'){const input=await body(req,8*1024*1024);return json(res,200,await storage().write(s.email,input.revision,input.data))}
       return json(res,405,{error:'Method not allowed.'});
     }
-    if(path==='/api/drive/status')return json(res,200,{configured,connected:!!s?.tokens,email:s?.email||null,defaultFolderId:process.env.DEFAULT_DRIVE_FOLDER_ID||''});
+    if(path==='/api/drive/status')return json(res,200,{configured,storage:hostedConfigured()?'hosted':'local',connected:!!s?.tokens,email:s?.email||null,defaultFolderId:process.env.DEFAULT_DRIVE_FOLDER_ID||''});
     if(path==='/auth/google') {
       if(!configured)return go(res,'/#settings/connections');
-      const pending=session(req,res,true);pending.oauth={state:random(),verifier:random(),expires:Date.now()+600000};
+      const pending=await session(req,res,true);pending.oauth={state:random(),verifier:random(),expires:Date.now()+600000};
       const auth=new URL('https://accounts.google.com/o/oauth2/v2/auth');
       auth.search=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID,redirect_uri:redirect,response_type:'code',scope:'openid email https://www.googleapis.com/auth/drive.readonly',access_type:'offline',prompt:'consent select_account',state:pending.oauth.state,...(process.env.ALLOWED_GOOGLE_EMAIL?{login_hint:process.env.ALLOWED_GOOGLE_EMAIL}:{}),code_challenge:createHash('sha256').update(pending.oauth.verifier).digest('base64url'),code_challenge_method:'S256'});
-      return go(res,auth.href);
+      await saveSession(pending);return go(res,auth.href);
     }
     if(path==='/auth/google/callback') {
       const state=url.searchParams.get('state')||'',expected=s?.oauth?.state||'';
       if(!expected||s.oauth.expires<Date.now()||state.length!==expected.length||!timingSafeEqual(Buffer.from(state),Buffer.from(expected)))return json(res,400,{error:'Invalid or expired sign-in. Start again from Settings.'});
-      const oauth=s.oauth;delete s.oauth;
+      const oauth=s.oauth;delete s.oauth;await saveSession(s);
       if(url.searchParams.has('error'))return go(res,'/?auth=cancelled#settings/connections');
       const tokens=await tokenRequest({client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,grant_type:'authorization_code',code:url.searchParams.get('code')||'',redirect_uri:redirect,code_verifier:oauth.verifier});
       if(!tokens.scope?.split(' ').includes('https://www.googleapis.com/auth/drive.readonly'))return json(res,403,{error:'Read-only Drive access is required to browse source folders.'});
       const info=await fetch('https://openidconnect.googleapis.com/v1/userinfo',{headers:{Authorization:`Bearer ${tokens.access_token}`},signal:AbortSignal.timeout(15000)});if(!info.ok)throw new Error('Unable to verify your Google account.');const user=await info.json();
       if(!user.email_verified||process.env.ALLOWED_GOOGLE_EMAIL&&user.email.toLowerCase()!==process.env.ALLOWED_GOOGLE_EMAIL.toLowerCase())return json(res,403,{error:'This Google account is not allowed for this workspace.'});
       // Rotate the session after authentication. Tokens never leave the server.
-      const old=req.headers.cookie?.match(/(?:^|;\s*)studio_session=([\w-]+)/)?.[1];if(old)sessions.delete(old);
-      const authenticated=session({...req,headers:{}},res,true);authenticated.tokens={...tokens,expires:Date.now()+tokens.expires_in*1000};authenticated.email=user.email;
+      const old=req.headers.cookie?.match(/(?:^|;\s*)studio_session=([\w-]+)/)?.[1];if(old)await sessions.delete(old);
+      const authenticated=await session({...req,headers:{}},res,true);authenticated.tokens={...tokens,expires:Date.now()+tokens.expires_in*1000};authenticated.email=user.email;await saveSession(authenticated);
       return go(res,'/#settings/connections');
     }
-    if(path==='/api/drive/disconnect'&&req.method==='POST'){if(s){const id=req.headers.cookie?.match(/(?:^|;\s*)studio_session=([\w-]+)/)?.[1];sessions.delete(id)}res.setHeader('Set-Cookie',`studio_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure?'; Secure':''}`);return json(res,200,{connected:false})}
+    if(path==='/api/drive/disconnect'&&req.method==='POST'){if(s){const id=req.headers.cookie?.match(/(?:^|;\s*)studio_session=([\w-]+)/)?.[1];await sessions.delete(id)}res.setHeader('Set-Cookie',`studio_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure?'; Secure':''}`);return json(res,200,{connected:false})}
     if(path.startsWith('/api/drive/')) {
       await access(s);
       if(path==='/api/drive/folders'&&req.method==='GET') {
@@ -83,7 +86,7 @@ export async function handler(req,res){
       if(path==='/api/drive/index'&&req.method==='POST') {
         if(s.indexing)return json(res,409,{error:'A folder is already loading. Please wait.'});
         const input=await body(req);s.indexing=true;
-        try{const result=await indexFolder({rootId:input.folderId,recursive:input.recursive===true,get:(p,q)=>google(s,p,q)});result.files.forEach(f=>s.files.set(f.id,f));return json(res,200,{folder:result.folder,folders:result.folders,files:result.files.map(({thumbnailLink,...file})=>file),syncedAt:new Date().toISOString()})}finally{s.indexing=false}
+        try{const result=await indexFolder({rootId:input.folderId,recursive:input.recursive===true,get:(p,q)=>google(s,p,q)});result.files.forEach(f=>s.files.set(f.id,true));await saveSession(s);return json(res,200,{folder:result.folder,folders:result.folders,files:result.files.map(({thumbnailLink,...file})=>file),syncedAt:new Date().toISOString()})}finally{s.indexing=false}
       }
       const match=path.match(/^\/api\/drive\/files\/([\w-]+)\/(thumbnail|download)$/);
       if(match&&req.method==='GET') {
@@ -110,4 +113,4 @@ export async function handler(req,res){
   }catch(error){if(res.headersSent){res.destroy();return}json(res,error.status||400,{error:error.message||'Something went wrong.'})}
 }
 if(process.argv[1]===fileURLToPath(import.meta.url))http.createServer(handler).listen(port,'127.0.0.1',()=>console.log(`Content Studio: ${origin}`));
-setInterval(()=>{for(const [id,s]of sessions)if(s.expires<Date.now())sessions.delete(id)},600000).unref();
+if(sessions instanceof Map)setInterval(()=>{for(const [id,s]of sessions)if(s.expires<Date.now())sessions.delete(id)},600000).unref();
