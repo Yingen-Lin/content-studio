@@ -32,6 +32,7 @@ The Google connection used by Codex is separate from this standalone app's OAuth
 
 - Source folders filter the unified gallery. The same Drive file is represented once across overlapping sources. Nested photographer folders also appear as indented sidebar filters. Click a parent source to hide or show its descendants while viewing that source’s photos; expansion is remembered in this browser for each account. Displayed photographer/source credits reflect the folder path.
 - Six photos per row on a normal desktop, eight in compact mode, with responsive smaller layouts. Images are lazy loaded and more records are revealed in batches of 48.
+- Open any photo and browse the entire current folder, collection, or filtered result with Previous/Next or the left/right keyboard arrows. The counter includes photos beyond the loaded thumbnails; navigation wraps at either end. Add tags with Enter or one-click suggestions and remove tags directly in the popup; changes save automatically. Connected photos include links to the original file and its source folder in Google Drive.
 - Select photos, add multiple tags, filter by any selected tag, or search filenames, folder credits, and tags.
 - Photos may belong to several post collections. Removing a photo from a collection or deleting the collection never deletes a Drive file.
 - Settings is pinned to the bottom of the sidebar and has its own routes for connections, collections, tags, and Storage & backup. Rename/delete tags globally or edit a single photo's tags from its preview.

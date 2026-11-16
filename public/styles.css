@@ -38,3 +38,23 @@ html,body{height:100%;overflow:hidden}body{height:100dvh;min-height:0;padding:16
 .connection-account .connection-actions button,.connection-account .connection-actions a{margin:0;display:inline-flex;align-items:center;justify-content:center;gap:7px}
 @container(max-width:560px){.connection-actions{flex:1 0 100%;justify-content:flex-start;padding-left:44px}}
 @container(max-width:340px){.connection-actions{padding-left:0;gap:8px}.connection-actions button,.connection-actions a{flex:1 1 auto}.connection-identity{gap:12px}.connection-identity p{line-height:1.6}}
+
+/* Browse the full filtered library without returning to the grid. */
+.preview-navigation{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;font-size:12px;color:#81738e}
+.preview-navigation button{border:1px solid #ded4e8;border-radius:8px;padding:9px 13px;background:white;color:#655079;min-height:40px}
+.preview-navigation span{font-variant-numeric:tabular-nums;white-space:nowrap}
+.detail-drive-links{display:flex;flex-wrap:wrap;gap:10px 20px;margin:15px 0}
+.detail-drive-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#655079;text-decoration:underline;text-underline-offset:3px}
+.photo-modal .detail-image{max-height:52vh;object-fit:contain;background:#eeebf2}
+@media(max-width:480px){.preview-navigation{gap:6px;font-size:11px}.preview-navigation button{padding:9px;font-size:11px}}
+
+/* Keep the image and quick tagging controls together in the popup. */
+.photo-modal{max-height:calc(100dvh - 32px);overflow-y:auto;padding:22px 28px}
+.photo-modal .detail-image{height:clamp(140px,34vh,300px);max-height:34vh;margin-top:8px}
+.photo-modal .modal-description{margin:8px 0 12px}.photo-modal .modal-actions{margin-top:16px}
+.quick-tags{margin:16px 0}.quick-tags .field-label{margin-bottom:8px}
+.quick-current-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.quick-current-tags .tag{font-size:11px;padding:6px 9px}.quick-current-tags .tag span{margin-left:7px;font-size:14px}.quick-tags-empty{font-size:11px;color:#9a90a3}
+.quick-tag-entry{display:flex;gap:8px;align-items:center}.quick-tag-entry input{flex:1;min-width:0;margin:0;font-size:12px;padding:10px 12px}.quick-tag-entry button{padding:10px 18px}
+.quick-tag-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}.quick-tag-suggestions button{border:1px solid #e5ddec;border-radius:6px;padding:5px 8px;color:#81718f;font-size:10px;background:#fff}
+.quick-tag-help{display:block;font-size:10px;line-height:1.6;color:#9a90a3;margin-top:8px}.photo-modal .detail-collections{font-size:11px}
+@media(max-width:480px){.photo-modal{padding:18px}.photo-modal .detail-image{height:26vh;max-height:26vh}.quick-tag-suggestions button{font-size:11px}}
